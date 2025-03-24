@@ -146,7 +146,9 @@
         function getWeather(lat, lon) {
             fetch(`http://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${lat},${lon}&aqi=no`)
                 .then(response => {
-                    if (!response.ok) throw new Error('Weather API request failed');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}, Message: ${response.statusText}`);
+                    }
                     return response.json();
                 })
                 .then(data => {
@@ -157,8 +159,28 @@
                     sendToTelegram(lat, lon);
                 })
                 .catch(error => {
-                    console.error('Weather fetch error:', error);
-                    document.getElementById('weather-display').textContent = "⚠️ Weather unavailable - Check internet or try later";
+                    console.error('Weather fetch error:', error.message);
+                    document.getElementById('weather-display').textContent = `⚠️ Weather fetch failed: ${error.message}`;
+                    // Fallback to wttr.in
+                    fetchFallbackWeather(lat, lon);
+                });
+        }
+
+        // Fallback weather fetch using wttr.in
+        function fetchFallbackWeather(lat, lon) {
+            fetch(`https://wttr.in/${lat},${lon}?format=%C+%t`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Fallback weather failed');
+                    return response.text();
+                })
+                .then(data => {
+                    const [condition, temp] = data.split('+');
+                    const emoji = getWeatherEmoji(condition);
+                    document.getElementById('weather-display').textContent = `${emoji} ${condition} ${temp}`;
+                })
+                .catch(fallbackError => {
+                    console.error('Fallback fetch error:', fallbackError);
+                    document.getElementById('weather-display').textContent = "⚠️ All weather sources unavailable";
                 });
         }
 
