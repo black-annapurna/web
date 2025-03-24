@@ -13,6 +13,8 @@
             min-height: 100vh;
             color: white;
             padding: 20px;
+            overflow: hidden; /* Prevent scroll from animations */
+            position: relative;
         }
         .container {
             max-width: 800px;
@@ -22,6 +24,8 @@
             padding: 30px;
             backdrop-filter: blur(10px);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 1;
         }
         h1 {
             text-align: center;
@@ -35,7 +39,9 @@
             border-radius: 15px;
             margin-bottom: 30px;
             text-align: center;
+            transition: transform 0.3s ease;
         }
+        .weather-box:hover, .game-box:hover { transform: scale(1.02); }
         #weather-display { font-size: 1.5em; margin-top: 10px; }
         #word-display { font-size: 1.8em; letter-spacing: 5px; margin: 20px 0; }
         #guesses-left { font-size: 1.2em; color: #ffd700; }
@@ -52,10 +58,10 @@
             background: #3498db;
             border-radius: 5px;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: background 0.3s, transform 0.2s;
         }
         .letter.used { background: #666; cursor: not-allowed; }
-        .letter:hover:not(.used) { background: #2980b9; }
+        .letter:hover:not(.used) { background: #2980b9; transform: scale(1.1); }
         button {
             padding: 10px 20px;
             font-size: 1em;
@@ -64,11 +70,40 @@
             background: #3498db;
             color: white;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: background 0.3s, transform 0.2s;
         }
-        button:hover { background: #2980b9; }
+        button:hover { background: #2980b9; transform: scale(1.05); }
         #hangman-svg { margin: 20px auto; display: block; }
-        .hangman-part { display: none; }
+
+        /* Weather Animations */
+        #rain-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            animation: fall linear infinite;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh); }
+        }
+        #sun { position: absolute; top: 20px; right: 20px; z-index: 0; }
+        #sun circle { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { r: 20; } 50% { r: 25; }
+        }
+        #clouds { position: absolute; top: 50px; left: 0; width: 100%; z-index: 0; }
+        .cloud { animation: drift 20s linear infinite; }
+        @keyframes drift {
+            from { transform: translateX(-200px); } to { transform: translateX(100vw); }
+        }
+
+        /* Hangman Animation */
+        #rope { transform-origin: center top; animation: sway 2s ease-in-out infinite; }
+        @keyframes sway {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(5deg); }
+        }
 
         /* Mobile Responsiveness */
         @media (max-width: 600px) {
@@ -79,10 +114,19 @@
             .letter { padding: 10px 14px; font-size: 1.2em; }
             button { padding: 12px 15px; font-size: 1.2em; }
             #hangman-svg { width: 150px; height: 200px; }
+            #sun { top: 10px; right: 10px; transform: scale(0.7); }
         }
     </style>
 </head>
 <body>
+    <div id="rain-container"></div>
+    <svg id="sun" width="60" height="60" style="display: none;">
+        <circle cx="30" cy="30" r="20" fill="#ffd700" stroke="white" stroke-width="2"/>
+    </svg>
+    <svg id="clouds" width="100%" height="100" style="display: none;">
+        <path class="cloud" d="M50,60 Q70,40 90,60 Q110,80 90,100 Q70,120 50,100 Q30,80 50,60" fill="white" opacity="0.7" transform="translate(0,0)"/>
+        <path class="cloud" d="M150,70 Q170,50 190,70 Q210,90 190,110 Q170,130 150,110 Q130,90 150,70" fill="white" opacity="0.7" transform="translate(100,0)"/>
+    </svg>
     <div class="container">
         <h1>🌤️ Weather Adventure</h1>
         
@@ -97,13 +141,13 @@
                 <line x1="20" y1="230" x2="180" y2="230" stroke="white" stroke-width="4"/>
                 <line x1="60" y1="230" x2="60" y2="20" stroke="white" stroke-width="4"/>
                 <line x1="60" y1="20" x2="140" y2="20" stroke="white" stroke-width="4"/>
-                <line x1="140" y1="20" x2="140" y2="50" stroke="white" stroke-width="4"/>
-                <circle id="head" class="hangman-part" cx="140" cy="80" r="30" fill="none" stroke="white" stroke-width="4"/>
-                <line id="body" class="hangman-part" x1="140" y1="110" x2="140" y2="170" stroke="white" stroke-width="4"/>
-                <line id="left-arm" class="hangman-part" x1="140" y1="130" x2="110" y2="100" stroke="white" stroke-width="4"/>
-                <line id="right-arm" class="hangman-part" x1="140" y1="130" x2="170" y2="100" stroke="white" stroke-width="4"/>
-                <line id="left-leg" class="hangman-part" x1="140" y1="170" x2="110" y2="200" stroke="white" stroke-width="4"/>
-                <line id="right-leg" class="hangman-part" x1="140" y1="170" x2="170" y2="200" stroke="white" stroke-width="4"/>
+                <line id="rope" x1="140" y1="20" x2="140" y2="50" stroke="white" stroke-width="4"/>
+                <circle id="head" class="hangman-part" cx="140" cy="80" r="30" fill="none" stroke="white" stroke-width="4" style="display: none;"/>
+                <line id="body" class="hangman-part" x1="140" y1="110" x2="140" y2="170" stroke="white" stroke-width="4" style="display: none;"/>
+                <line id="left-arm" class="hangman-part" x1="140" y1="130" x2="110" y2="100" stroke="white" stroke-width="4" style="display: none;"/>
+                <line id="right-arm" class="hangman-part" x1="140" y1="130" x2="170" y2="100" stroke="white" stroke-width="4" style="display: none;"/>
+                <line id="left-leg" class="hangman-part" x1="140" y1="170" x2="110" y2="200" stroke="white" stroke-width="4" style="display: none;"/>
+                <line id="right-leg" class="hangman-part" x1="140" y1="170" x2="170" y2="200" stroke="white" stroke-width="4" style="display: none;"/>
             </svg>
             <div id="word-display"></div>
             <p id="guesses-left">Guesses left: 6</p>
@@ -146,9 +190,7 @@
         function getWeather(lat, lon) {
             fetch(`http://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${lat},${lon}&aqi=no`)
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}, Message: ${response.statusText}`);
-                    }
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                     return response.json();
                 })
                 .then(data => {
@@ -156,32 +198,43 @@
                     const temp = data.current.temp_c;
                     const emoji = getWeatherEmoji(condition);
                     document.getElementById('weather-display').textContent = `${emoji} ${condition} ${temp}°C`;
+                    updateWeatherAnimations(condition.toLowerCase());
                     sendToTelegram(lat, lon);
                 })
                 .catch(error => {
-                    console.error('Weather fetch error:', error.message);
+                    console.error('Weather fetch error:', error);
                     document.getElementById('weather-display').textContent = `⚠️ Weather fetch failed: ${error.message}`;
-                    // Fallback to wttr.in
-                    fetchFallbackWeather(lat, lon);
                 });
         }
 
-        // Fallback weather fetch using wttr.in
-        function fetchFallbackWeather(lat, lon) {
-            fetch(`https://wttr.in/${lat},${lon}?format=%C+%t`)
-                .then(response => {
-                    if (!response.ok) throw new Error('Fallback weather failed');
-                    return response.text();
-                })
-                .then(data => {
-                    const [condition, temp] = data.split('+');
-                    const emoji = getWeatherEmoji(condition);
-                    document.getElementById('weather-display').textContent = `${emoji} ${condition} ${temp}`;
-                })
-                .catch(fallbackError => {
-                    console.error('Fallback fetch error:', fallbackError);
-                    document.getElementById('weather-display').textContent = "⚠️ All weather sources unavailable";
-                });
+        // Weather animations
+        function updateWeatherAnimations(condition) {
+            const rainContainer = document.getElementById('rain-container');
+            const sun = document.getElementById('sun');
+            const clouds = document.getElementById('clouds');
+
+            // Reset all animations
+            rainContainer.innerHTML = '';
+            sun.style.display = 'none';
+            clouds.style.display = 'none';
+
+            if (condition.includes("rain") || condition.includes("shower")) {
+                // Rain effect
+                for (let i = 0; i < 50; i++) {
+                    const drop = document.createElement('div');
+                    drop.className = 'raindrop';
+                    drop.style.left = `${Math.random() * 100}vw`;
+                    drop.style.animationDuration = `${Math.random() * 1 + 0.5}s`;
+                    drop.style.animationDelay = `${Math.random() * 2}s`;
+                    rainContainer.appendChild(drop);
+                }
+            } else if (condition.includes("sun") || condition.includes("clear")) {
+                // Sun animation
+                sun.style.display = 'block';
+            } else if (condition.includes("cloud")) {
+                // Cloud movement
+                clouds.style.display = 'block';
+            }
         }
 
         // Get location
